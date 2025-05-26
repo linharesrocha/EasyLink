@@ -1,4 +1,4 @@
-package br.com.easylink.easylink_service;
+package br.com.easylink.easylinkservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
