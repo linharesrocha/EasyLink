@@ -8,17 +8,39 @@ spring:
   cloud:
     gateway:
       routes:
-        # Rota 1
         - id: easylink-service-api-route
           uri: lb://easylink-service
           predicates:
             - Path=/api/v1/**
-        # Rota 2
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: easylink-service
+                fallbackUri: forward:/fallback/service
+
         - id: easylink-service-redirect-route
           uri: lb://easylink-service
           predicates:
             - Path=/{shortKey:[a-zA-Z0-9]{8}}
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: easylink-service
+                fallbackUri: forward:/fallback/service
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+
+# Resilience4j
+resilience4j.circuitbreaker:
+  instances:
+    # Nome disjuntor
+    easylink-service:
+      slidingWindowType: COUNT_BASED # Analisa as chamadas em janelas baseadas em contagem
+      slidingWindowSize: 10 # Analisa as últimas 10 chamadas
+      failureRateThreshold: 50 # Dispara se 50% das chamadas na janela falharem
+      waitDurationInOpenState: 15s # Fica "aberto" por 15 segundos antes de tentar de novo
+      permittedNumberOfCallsInHalfOpenState: 2 # Permite 2 chamadas de teste no estado "meio-aberto"
+      automaticTransitionFromOpenToHalfOpenEnabled: true
