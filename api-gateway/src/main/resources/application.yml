@@ -4,10 +4,21 @@ server:
 spring:
   application:
     name: api-gateway
-
   cloud:
     gateway:
       routes:
+        # Rota de usuários
+        - id: user-service-route
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: user-service
+                fallbackUri: forward:/fallback/service
+
+        # Rota genérica para a API do easylink-service
         - id: easylink-service-api-route
           uri: lb://easylink-service
           predicates:
@@ -18,6 +29,7 @@ spring:
                 name: easylink-service
                 fallbackUri: forward:/fallback/service
 
+        # Rota de redirecionamento
         - id: easylink-service-redirect-route
           uri: lb://easylink-service
           predicates:
@@ -32,15 +44,23 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka/
 
-
 # Resilience4j
 resilience4j.circuitbreaker:
   instances:
-    # Nome disjuntor
+    # Disjuntor para o serviço de links
     easylink-service:
-      slidingWindowType: COUNT_BASED # Analisa as chamadas em janelas baseadas em contagem
-      slidingWindowSize: 10 # Analisa as últimas 10 chamadas
-      failureRateThreshold: 50 # Dispara se 50% das chamadas na janela falharem
-      waitDurationInOpenState: 15s # Fica "aberto" por 15 segundos antes de tentar de novo
-      permittedNumberOfCallsInHalfOpenState: 2 # Permite 2 chamadas de teste no estado "meio-aberto"
+      slidingWindowType: COUNT_BASED
+      slidingWindowSize: 10
+      failureRateThreshold: 50
+      waitDurationInOpenState: 15s
+      permittedNumberOfCallsInHalfOpenState: 2
+      automaticTransitionFromOpenToHalfOpenEnabled: true
+
+    # Disjuntor para o serviço de usuários
+    user-service:
+      slidingWindowType: COUNT_BASED
+      slidingWindowSize: 10
+      failureRateThreshold: 50
+      waitDurationInOpenState: 15s
+      permittedNumberOfCallsInHalfOpenState: 2
       automaticTransitionFromOpenToHalfOpenEnabled: true
