@@ -1,9 +1,6 @@
 package br.com.easylink.easylinkservice.infrastructure.api.controller;
 
-import br.com.easylink.easylinkservice.application.ports.QrCodeGeneratorPort;
-import br.com.easylink.easylinkservice.application.ports.RedirectUseCase;
-import br.com.easylink.easylinkservice.application.ports.UpdateUrlUseCase;
-import br.com.easylink.easylinkservice.application.ports.UrlShortenerUseCase;
+import br.com.easylink.easylinkservice.application.ports.*;
 import br.com.easylink.easylinkservice.domain.UrlMapping;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlRequestDTO;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlResponseDTO;
@@ -31,6 +28,7 @@ public class UrlShortenerController {
     private final RedirectUseCase redirectUseCase;
     private final QrCodeGeneratorPort qrCodeGeneratorPort;
     private final UpdateUrlUseCase updateUrlUseCase;
+    private final DeleteUrlUseCase deleteUrlUseCase;
 
     private final String BASE_URL = "http://localhost:8080/";
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -112,5 +110,23 @@ public class UrlShortenerController {
                 updatedMapping.getCreatedAt()
         );
         return ResponseEntity.ok(responseDto);
+    }
+
+    @DeleteMapping("/api/v1/urls/{shortKey}")
+    public ResponseEntity<Void> deleteShortenedUrl(
+            @PathVariable String shortKey,
+            @RequestHeader("X-User-Username") String username) {
+        try {
+            deleteUrlUseCase.deleteUrl(shortKey, username);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            if (e.getMessage().startsWith("Link não encontrado")) {
+                return ResponseEntity.notFound().build();
+            } else if (e.getMessage().startsWith("Usuário não autorizado")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            log.error("Erro inesperado ao deletar link: {}", shortKey, e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
