@@ -5,6 +5,13 @@ import br.com.easylink.easylinkservice.domain.UrlMapping;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlRequestDTO;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlResponseDTO;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.UpdateUrlRequestDTO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +29,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
+@Tag(name = "Gerenciador de URLs", description = "Endpoints para criar, editar, deletar e redirecionar URLs encurtadas")
 public class UrlShortenerController {
 
     private final UrlShortenerUseCase urlShortenerUseCase;
@@ -35,6 +43,17 @@ public class UrlShortenerController {
 
     private static final String URL_CLICKS_TOPIC = "url-clicks-topic";
 
+    @Operation(summary = "Encurta uma nova URL",
+            description = "Cria um novo link encurtado para a URL original fornecida. Requer autenticação.",
+            security = @SecurityRequirement(name = "bearerAuth")) // Indica que este endpoint é protegido
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "URL encurtada com sucesso",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreateUrlResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos (URL inválida ou em branco)"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado (token JWT ausente ou inválido)"),
+            @ApiResponse(responseCode = "403", description = "Não autorizado (token JWT não tem permissão)"),
+            @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
+    })
     @PostMapping("/api/v1/urls")
     public ResponseEntity<CreateUrlResponseDTO> shortenUrl(
             @RequestBody @Valid CreateUrlRequestDTO request,
@@ -58,6 +77,12 @@ public class UrlShortenerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
 
+    @Operation(summary = "Redireciona para a URL original",
+            description = "Redireciona o usuário para a URL original correspondente à chave curta fornecida. Este endpoint é público.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "302", description = "Redirecionamento encontrado"),
+            @ApiResponse(responseCode = "404", description = "Link não encontrado para a chave fornecida")
+    })
     @GetMapping("/{shortKey}")
     public ResponseEntity<Void> redirectToOriginalUrl(@PathVariable String shortKey) {
         Optional<String> originalUrlOpt = redirectUseCase.getOriginalUrl(shortKey);
@@ -76,6 +101,14 @@ public class UrlShortenerController {
         }
     }
 
+    @Operation(summary = "Obtém o QR Code para um link encurtado",
+            description = "Retorna uma imagem PNG do QR Code para a URL encurtada correspondente à chave. Este endpoint é público.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Imagem do QR Code gerada com sucesso",
+                    content = @Content(mediaType = MediaType.IMAGE_PNG_VALUE)),
+            @ApiResponse(responseCode = "404", description = "Link não encontrado para a chave fornecida"),
+            @ApiResponse(responseCode = "500", description = "Erro ao gerar QR Code")
+    })
     @GetMapping(value = "/{shortKey}/qr", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getQrCode(@PathVariable String shortKey) {
         try {
@@ -92,6 +125,18 @@ public class UrlShortenerController {
         }
     }
 
+    @Operation(summary = "Atualiza a URL de destino de um link encurtado",
+            description = "Altera a URL original para a qual uma chave curta redireciona. Requer autenticação e que o usuário seja o dono do link.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "URL de destino atualizada com sucesso",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = CreateUrlResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Não autorizado (usuário não é o dono do link)"),
+            @ApiResponse(responseCode = "404", description = "Link não encontrado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
+    })
     @PutMapping("/api/v1/urls/{shortKey}")
     public ResponseEntity<CreateUrlResponseDTO> updateShortenedUrl(
             @PathVariable String shortKey,
@@ -112,6 +157,16 @@ public class UrlShortenerController {
         return ResponseEntity.ok(responseDto);
     }
 
+    @Operation(summary = "Deleta um link encurtado",
+            description = "Remove um link encurtado do sistema. Requer autenticação e que o usuário seja o dono do link.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Link deletado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado"),
+            @ApiResponse(responseCode = "403", description = "Não autorizado (usuário não é o dono do link)"),
+            @ApiResponse(responseCode = "404", description = "Link não encontrado"),
+            @ApiResponse(responseCode = "500", description = "Erro interno do servidor")
+    })
     @DeleteMapping("/api/v1/urls/{shortKey}")
     public ResponseEntity<Void> deleteShortenedUrl(
             @PathVariable String shortKey,
