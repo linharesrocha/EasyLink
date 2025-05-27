@@ -1,16 +1,14 @@
 /* index.css */
 
-/* Define nossa paleta de cores como variáveis CSS.  */
 :root {
   --primary-blue: #007bff;
   --primary-blue-darker: #0056b3;
-  --background-color: #f8f9fa; /* Um branco levemente acinzentado, mais suave para os olhos */
+  --background-color: #f8f9fa; 
   --text-color: #212529;
   --border-color: #ced4da;
   --white: #ffffff;
 }
 
-/* Resets básicos e fontes */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -20,7 +18,6 @@ body {
   color: var(--text-color);
 }
 
-/* Estilo para o container principal da nossa aplicação */
 #root {
   display: flex;
   flex-direction: column;
