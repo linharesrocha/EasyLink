@@ -7,14 +7,17 @@ import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlRequestDT
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -22,6 +25,10 @@ public class UrlShortenerController {
 
     private final UrlShortenerUseCase urlShortenerUseCase;
     private final RedirectUseCase redirectUseCase;
+
+    private final KafkaTemplate<String, String> kafkaTemplate;
+
+    private static final String URL_CLICKS_TOPIC = "url-clicks-topic";
 
     @PostMapping("/api/v1/urls")
     public ResponseEntity<CreateUrlResponseDTO> shortenUrl(@RequestBody @Valid CreateUrlRequestDTO request) {
@@ -44,13 +51,16 @@ public class UrlShortenerController {
 
     @GetMapping("/{shortKey}")
     public ResponseEntity<Void> redirectToOriginalUrl(@PathVariable String shortKey) {
-        Optional<String> originalUrlOpt= redirectUseCase.getOriginalUrl(shortKey);
+        Optional<String> originalUrlOpt = redirectUseCase.getOriginalUrl(shortKey);
 
-        if(originalUrlOpt.isPresent()) {
-            String originalUrl = originalUrlOpt.get();
+        if (originalUrlOpt.isPresent()) {
+            log.info("Disparando evento de clique para o Kafka. Chave: {}", shortKey);
+            kafkaTemplate.send(URL_CLICKS_TOPIC, shortKey);
+
+            // Ação 2: Montar a resposta de redirecionamento.
             return ResponseEntity
                     .status(HttpStatus.FOUND)
-                    .location(URI.create(originalUrl))
+                    .location(URI.create(originalUrlOpt.get()))
                     .build();
         } else {
             return ResponseEntity.notFound().build();
