@@ -1,15 +1,55 @@
 version: '3.8'
 
 services:
-  discovery-service:
-    build:
-      context: ./discovery-service
-      dockerfile: Dockerfile
-    container_name: discovery-service
+  # 1. Serviços de Infraestrutura Base (Bancos de Dados e Cache)
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: easylink-postgres-db
     ports:
-      - "8761:8761"
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=easylink_user
+      - POSTGRES_PASSWORD=easylink_password
+      - POSTGRES_DB=easylink_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  user-postgres-db:
+    image: postgres:15-alpine
+    container_name: easylink-user-postgres-db
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=user_db_user
+      - POSTGRES_PASSWORD=user_db_password
+      - POSTGRES_DB=user_db
+    volumes:
+      - user_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  mongo-db:
+    image: mongo:7.0
+    container_name: easylink-mongo-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=rootpassword
+    restart: unless-stopped
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: easylink-redis-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # 2. Mensageria (Kafka e Zookeeper)
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.3
     container_name: zookeeper
@@ -33,39 +73,32 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
 
-  postgres-db:
-    image: postgres:15-alpine
-    container_name: easylink-postgres-db
+  # 3. Service Discovery
+  discovery-service:
+    build:
+      context: ./discovery-service
+      dockerfile: Dockerfile
+    container_name: discovery-service
     ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=easylink_user
-      - POSTGRES_PASSWORD=easylink_password
-      - POSTGRES_DB=easylink_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "8761:8761"
     restart: unless-stopped
 
-  mongo-db:
-    image: mongo:7.0
-    container_name: easylink-mongo-db
+  # 4. API Gateway (depende apenas do Service Discovery para iniciar)
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
     ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
+      - "8080:8080"
+    depends_on:
+      - discovery-service
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=rootpassword
-
-  redis-cache:
-    image: redis:7-alpine
-    container_name: easylink-redis-cache
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      API_SECURITY_TOKEN_SECRET: ${API_JWT_SECRET_KEY:-meu-secret-super-secreto-para-gerar-tokens-do-easylink}
     restart: unless-stopped
 
+  # 5. Microsserviços da Aplicação
   easylink-service:
     build:
       context: ./easylink-service
@@ -78,7 +111,6 @@ services:
       - postgres-db
       - kafka
       - redis-cache
-      - api-gateway
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/easylink_db
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -94,11 +126,12 @@ services:
     ports:
       - "8083:8083"
     depends_on:
-      - discovery-service # Deve esperar o Eureka
-      - postgres-db       # Deve esperar o Postgres
-      - api-gateway
+      - discovery-service
+      - user-postgres-db
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/easylink_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-postgres-db:5432/user_db
+      SPRING_DATASOURCE_USERNAME: user_db_user
+      SPRING_DATASOURCE_PASSWORD: user_db_password
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       API_SECURITY_TOKEN_SECRET: ${API_JWT_SECRET_KEY:-meu-secret-super-secreto-para-gerar-tokens-do-easylink}
     restart: unless-stopped
@@ -111,31 +144,19 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      - discovery-service # Deve esperar o Eureka
-      - kafka             # Deve esperar o Kafka
-      - mongo-db          # Deve esperar o MongoDB
+      - discovery-service
+      - kafka
+      - mongo-db
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATA_MONGODB_URI: mongodb://root:rootpassword@mongo-db:27017/analytics_db?authSource=admin
     restart: unless-stopped
 
-  api-gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    container_name: api-gateway
-    ports:
-      - "8080:8080"
-    depends_on:
-      - discovery-service
-    environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
-      API_SECURITY_TOKEN_SECRET: ${API_JWT_SECRET_KEY:-meu-secret-super-secreto-para-gerar-tokens-do-easylink}
-    restart: unless-stopped
-
 volumes:
   postgres_data:
+    driver: local
+  user_postgres_data:
     driver: local
   mongo_data:
     driver: local
