@@ -1,10 +1,13 @@
 # EasyLink: Encurtador de URLs com Microsserviços
 
-![Logo do EasyLink](https://raw.githubusercontent.com/linharesrocha/EasyLink/refs/heads/main/easylink-service/src/main/resources/static/logo.png
+<img src="https://raw.githubusercontent.com/linharesrocha/EasyLink/refs/heads/main/easylink-service/src/main/resources/static/logo.png" alt="Logo do EasyLink" width="300"/>
 
 Bem-vindo ao EasyLink! Este projeto é um encurtador de URLs robusto e escalável, construído com Java, Spring Boot e uma arquitetura de microsserviços. Ele foi desenvolvido como um projeto de portfólio para demonstrar a aplicação de diversas tecnologias e boas práticas de desenvolvimento backend.
 
 ## Funcionalidades Principais
+
+<img src="https://raw.githubusercontent.com/linharesrocha/EasyLink/refs/heads/main/easylink-service/src/main/resources/static/swagger.png" alt="Endpoints" width="100%" height="100%"/>
+
 
 * **Encurtamento de URL:** Cria links curtos e únicos.
 * **Redirecionamento:** Direciona de forma eficiente para a URL original.
