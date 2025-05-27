@@ -66,6 +66,25 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
+  easylink-service:
+    build:
+      context: ./easylink-service
+      dockerfile: Dockerfile
+    container_name: easylink-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - discovery-service
+      - postgres-db
+      - kafka
+      - redis-cache
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/easylink_db
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_REDIS_HOST: redis-cache
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local
