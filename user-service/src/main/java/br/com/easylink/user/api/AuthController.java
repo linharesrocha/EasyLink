@@ -1,5 +1,7 @@
 package br.com.easylink.user.api;
 
+import br.com.easylink.user.api.dto.AuthResponseDTO;
+import br.com.easylink.user.api.dto.LoginRequestDTO;
 import br.com.easylink.user.api.dto.RegisterRequestDTO;
 import br.com.easylink.user.service.AuthService;
 import jakarta.validation.Valid;
@@ -22,5 +24,12 @@ public class AuthController {
     public ResponseEntity<String> register(@RequestBody @Valid RegisterRequestDTO request) {
         authService.register(request.username(), request.password());
         return ResponseEntity.status(HttpStatus.CREATED).body("Usuário registrado com sucesso!");
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponseDTO> login(@RequestBody @Valid LoginRequestDTO request) {
+        String token = authService.login(request.username(), request.password());
+        AuthResponseDTO response = new AuthResponseDTO(token);
+        return ResponseEntity.ok(response);
     }
 }
