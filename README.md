@@ -4,6 +4,15 @@
 
 Bem-vindo ao EasyLink! Este projeto é um encurtador de URLs robusto e escalável, construído com Java, Spring Boot e uma arquitetura de microsserviços. Ele foi desenvolvido como um projeto de portfólio para demonstrar a aplicação de diversas tecnologias e boas práticas de desenvolvimento backend.
 
+## Tecnologias Chave
+
+* **Backend:** Java 21, Spring Boot 3.x, Spring Cloud, Spring Security
+* **Persistência:** PostgreSQL, MongoDB, Redis
+* **Mensageria:** Apache Kafka
+* **Containerização:** Docker, Docker Compose
+* **Documentação API:** OpenAPI 3 (Swagger)
+* **Testes:** JUnit 5, Mockito
+
 ## Funcionalidades Principais
 
 <img src="https://raw.githubusercontent.com/linharesrocha/EasyLink/refs/heads/main/easylink-service/src/main/resources/static/swagger.png" alt="Endpoints" width="100%" height="100%"/>
@@ -34,15 +43,6 @@ O EasyLink utiliza uma arquitetura de microsserviços para modularidade e escala
 * MongoDB (para `analytics-service`)
 * Apache Kafka & Zookeeper (para analytics)
 * Redis (para cache)
-
-## Tecnologias Chave
-
-* **Backend:** Java 21, Spring Boot 3.x, Spring Cloud, Spring Security
-* **Persistência:** PostgreSQL, MongoDB, Redis
-* **Mensageria:** Apache Kafka
-* **Containerização:** Docker, Docker Compose
-* **Documentação API:** OpenAPI 3 (Swagger)
-* **Testes:** JUnit 5, Mockito
 
 ## Como Executar Localmente
 
