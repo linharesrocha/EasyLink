@@ -85,6 +85,39 @@ services:
       SPRING_DATA_REDIS_HOST: redis-cache
     restart: unless-stopped
 
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      - discovery-service # Deve esperar o Eureka
+      - postgres-db       # Deve esperar o Postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/easylink_db
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      API_SECURITY_TOKEN_SECRET: ${API_JWT_SECRET_KEY:-meu-secret-super-secreto-para-gerar-tokens-do-easylink}
+    restart: unless-stopped
+
+  analytics-service:
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+    container_name: analytics-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - discovery-service # Deve esperar o Eureka
+      - kafka             # Deve esperar o Kafka
+      - mongo-db          # Deve esperar o MongoDB
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_MONGODB_URI: mongodb://root:rootpassword@mongo-db:27017/analytics_db?authSource=admin
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local
