@@ -1,5 +1,6 @@
 package br.com.easylink.easylinkservice.infrastructure.api.controller;
 
+import br.com.easylink.easylinkservice.application.ports.QrCodeGeneratorPort;
 import br.com.easylink.easylinkservice.application.ports.RedirectUseCase;
 import br.com.easylink.easylinkservice.application.ports.UrlShortenerUseCase;
 import br.com.easylink.easylinkservice.domain.UrlMapping;
@@ -9,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +27,9 @@ public class UrlShortenerController {
 
     private final UrlShortenerUseCase urlShortenerUseCase;
     private final RedirectUseCase redirectUseCase;
+    private final QrCodeGeneratorPort qrCodeGeneratorPort;
 
+    private final String BASE_URL = "http://localhost:8080/";
     private final KafkaTemplate<String, String> kafkaTemplate;
 
     private static final String URL_CLICKS_TOPIC = "url-clicks-topic";
@@ -64,6 +68,22 @@ public class UrlShortenerController {
                     .build();
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping(value = "/{shortKey}/qr", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getQrCode(@PathVariable String shortKey) {
+        try {
+            String fullShortUrl = BASE_URL + shortKey;
+
+            // Usamos o método da nossa porta
+            byte[] qrCodeImage = qrCodeGeneratorPort.generate(fullShortUrl, 250, 250);
+
+            return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(qrCodeImage);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
         }
     }
 }
