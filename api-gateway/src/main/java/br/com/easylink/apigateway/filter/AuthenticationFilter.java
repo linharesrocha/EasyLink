@@ -2,11 +2,13 @@ package br.com.easylink.apigateway.filter;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -41,9 +43,10 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
             // 3. Extrai e valida o token
             String token = authHeader.substring(7);
+            DecodedJWT decodedJWT; // Variável para o token decodificado
             try {
                 Algorithm algorithm = Algorithm.HMAC256(secret);
-                JWT.require(algorithm)
+                decodedJWT = JWT.require(algorithm) // Decodifica e verifica
                         .withIssuer("EasyLink API")
                         .build()
                         .verify(token);
@@ -51,8 +54,17 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 return onError(exchange, "Token inválido ou expirado", HttpStatus.FORBIDDEN);
             }
 
-            // Se o token for válido, a requisição continua
-            return chain.filter(exchange);
+            // Se o token for válido, extraímos o username (subject)
+            String username = decodedJWT.getSubject();
+
+            // Adicionando o username como um header na requisição original
+            ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                    .header("X-User-Username", username)
+                    .build();
+
+            ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
+
+            return chain.filter(mutatedExchange); // Continua com a requisição MUTADA
         };
     }
 

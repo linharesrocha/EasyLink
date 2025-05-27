@@ -16,13 +16,14 @@ public class UrlShortenerUseCaseImpl implements UrlShortenerUseCase {
     private final UrlMappingRepositoryPort urlMappingRepositoryPort;
 
     @Override
-    public UrlMapping shortenUrl(String originalUrl) {
+    public UrlMapping shortenUrl(String originalUrl, String ownerUsername) {
         String shortKey = RandomStringUtils.randomAlphanumeric(8);
 
         UrlMapping newUrlMapping = new UrlMapping();
         newUrlMapping.setOriginalUrl(originalUrl);
         newUrlMapping.setShortKey(shortKey);
         newUrlMapping.setCreatedAt(LocalDateTime.now());
+        newUrlMapping.setOwnerUsername(ownerUsername);
 
         return urlMappingRepositoryPort.save(newUrlMapping);
     }

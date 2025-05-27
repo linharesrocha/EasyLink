@@ -2,10 +2,12 @@ package br.com.easylink.easylinkservice.infrastructure.api.controller;
 
 import br.com.easylink.easylinkservice.application.ports.QrCodeGeneratorPort;
 import br.com.easylink.easylinkservice.application.ports.RedirectUseCase;
+import br.com.easylink.easylinkservice.application.ports.UpdateUrlUseCase;
 import br.com.easylink.easylinkservice.application.ports.UrlShortenerUseCase;
 import br.com.easylink.easylinkservice.domain.UrlMapping;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlRequestDTO;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlResponseDTO;
+import br.com.easylink.easylinkservice.infrastructure.api.dto.UpdateUrlRequestDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ public class UrlShortenerController {
     private final UrlShortenerUseCase urlShortenerUseCase;
     private final RedirectUseCase redirectUseCase;
     private final QrCodeGeneratorPort qrCodeGeneratorPort;
+    private final UpdateUrlUseCase updateUrlUseCase;
 
     private final String BASE_URL = "http://localhost:8080/";
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -35,18 +38,22 @@ public class UrlShortenerController {
     private static final String URL_CLICKS_TOPIC = "url-clicks-topic";
 
     @PostMapping("/api/v1/urls")
-    public ResponseEntity<CreateUrlResponseDTO> shortenUrl(@RequestBody @Valid CreateUrlRequestDTO request) {
-        UrlMapping newMapping = urlShortenerUseCase.shortenUrl(request.originalUrl());
+    public ResponseEntity<CreateUrlResponseDTO> shortenUrl(
+            @RequestBody @Valid CreateUrlRequestDTO request,
+            @RequestHeader("X-User-Username") String username) {
+        UrlMapping newMapping = urlShortenerUseCase.shortenUrl(request.originalUrl(), username);
 
         URI shortUri = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/{shortKey}")
                 .buildAndExpand(newMapping.getShortKey())
                 .toUri();
 
+        String gatewayShortURL = BASE_URL + newMapping.getShortKey();
+
         CreateUrlResponseDTO responseDto = new CreateUrlResponseDTO(
                 newMapping.getShortKey(),
                 newMapping.getOriginalUrl(),
-                shortUri.toString(),
+                gatewayShortURL,
                 newMapping.getCreatedAt()
         );
 
@@ -85,5 +92,25 @@ public class UrlShortenerController {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    @PutMapping("/api/v1/urls/{shortKey}")
+    public ResponseEntity<CreateUrlResponseDTO> updateShortenedUrl(
+            @PathVariable String shortKey,
+            @RequestBody @Valid UpdateUrlRequestDTO request,
+            @RequestHeader("X-User-Username") String username
+            ) {
+
+        UrlMapping updatedMapping = updateUrlUseCase.updateUrl(shortKey, request.newOriginalUrl(), username);
+
+        // Reutilizando o DTO de criação para a resposta, mas poderíamos ter um UpdateUrlResponseDTO
+        String gatewayShortUrl = BASE_URL + updatedMapping.getShortKey();
+        CreateUrlResponseDTO responseDto = new CreateUrlResponseDTO(
+                updatedMapping.getShortKey(),
+                updatedMapping.getOriginalUrl(),
+                gatewayShortUrl,
+                updatedMapping.getCreatedAt()
+        );
+        return ResponseEntity.ok(responseDto);
     }
 }
