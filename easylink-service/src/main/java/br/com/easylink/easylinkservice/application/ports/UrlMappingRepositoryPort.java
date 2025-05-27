@@ -8,4 +8,5 @@ public interface UrlMappingRepositoryPort {
 
     UrlMapping save(UrlMapping urlMapping);
     Optional<UrlMapping> findByShortKey(String shortKey);
+    void deleteByShortKey(String shortKey);
 }

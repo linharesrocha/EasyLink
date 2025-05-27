@@ -22,4 +22,9 @@ public class UrlMappingPersistenceAdapter implements UrlMappingRepositoryPort {
     public Optional<UrlMapping> findByShortKey(String shortKey) {
         return repository.findByShortKey(shortKey);
     }
+
+    @Override
+    public void deleteByShortKey(String shortKey) {
+        repository.deleteByShortKey(shortKey);
+    }
 }

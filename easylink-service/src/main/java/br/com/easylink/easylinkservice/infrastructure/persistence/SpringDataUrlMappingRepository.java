@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface SpringDataUrlMappingRepository extends JpaRepository<UrlMapping, Long> {
 
     Optional<UrlMapping> findByShortKey(String shortKey);
+    void deleteByShortKey(String shortKey);
 }
