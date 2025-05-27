@@ -6,6 +6,8 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      default-filters:
+        - AuthenticationFilter
       routes:
         # Rota de usuários
         - id: user-service-route
@@ -64,3 +66,8 @@ resilience4j.circuitbreaker:
       waitDurationInOpenState: 15s
       permittedNumberOfCallsInHalfOpenState: 2
       automaticTransitionFromOpenToHalfOpenEnabled: true
+
+api:
+  security:
+    token:
+      secret: meu-secret-super-secreto-para-gerar-tokens-do-easylink
