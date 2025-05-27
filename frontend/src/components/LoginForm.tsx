@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import styles from './LoginForm.module.css';
 import axios from 'axios';
 
-export const LoginForm = () => {
+export const LoginForm = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -25,6 +25,8 @@ export const LoginForm = () => {
       const token = response.data.token;
       console.log('Login bem-sucedido! Token recebido:', token);
       localStorage.setItem('authToken', token);
+
+      onLoginSuccess();
 
       alert('Login realizado com sucesso!');
 
