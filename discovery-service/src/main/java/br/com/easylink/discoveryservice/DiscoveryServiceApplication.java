@@ -1,4 +1,4 @@
-package br.com.easylink.discovery_service;
+package br.com.easylink.discoveryservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
