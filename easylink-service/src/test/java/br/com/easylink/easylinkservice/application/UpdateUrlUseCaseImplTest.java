@@ -1,5 +1,8 @@
+// Path: easylink-service/src/test/java/br/com/easylink/easylinkservice/application/UpdateUrlUseCaseImplTest.java
 package br.com.easylink.easylinkservice.application;
 
+import br.com.easylink.easylinkservice.application.exceptions.UrlNotFoundException;
+import br.com.easylink.easylinkservice.application.exceptions.UserNotAuthorizedException;
 import br.com.easylink.easylinkservice.application.ports.UrlMappingRepositoryPort;
 import br.com.easylink.easylinkservice.domain.UrlMapping;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,8 +50,8 @@ class UpdateUrlUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("Deve atualizar a URL original quando o link existe e o usuário é o dono")
-    void updateUrl_quandoLinkExisteEDonoCorreto_deveAtualizarEsalvar() {
+    @DisplayName("Should update original URL when link exists and user is the owner")
+    void updateUrl_whenLinkExistsAndUserIsOwner_shouldUpdateAndSaveChanges() {
         when(urlMappingRepositoryPort.findByShortKey(shortKey)).thenReturn(Optional.of(existingUrlMapping));
         when(urlMappingRepositoryPort.save(any(UrlMapping.class))).thenReturn(existingUrlMapping);
 
@@ -65,29 +68,29 @@ class UpdateUrlUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("Deve lançar RuntimeException quando o link não é encontrado")
-    void updateUrl_quandoLinkNaoExiste_deveLancarExcecao() {
+    @DisplayName("Should throw UrlNotFoundException when link is not found")
+    void updateUrl_whenLinkIsNotFound_shouldThrowUrlNotFoundException() {
         when(urlMappingRepositoryPort.findByShortKey(shortKey)).thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        UrlNotFoundException exception = assertThrows(UrlNotFoundException.class, () -> {
             updateUrlUseCase.updateUrl(shortKey, newOriginalUrl, ownerUsername);
         });
 
-        assertEquals("Link não encontrado com a chave: " + shortKey, exception.getMessage());
+        assertEquals("Link not found with key: " + shortKey, exception.getMessage());
         verify(urlMappingRepositoryPort, never()).save(any(UrlMapping.class));
     }
 
     @Test
-    @DisplayName("Deve lançar RuntimeException quando o usuário não é o dono do link")
-    void updateUrl_quandoUsuarioNaoEDono_deveLancarExcecao() {
+    @DisplayName("Should throw UserNotAuthorizedException when user is not the owner")
+    void updateUrl_whenUserIsNotTheOwner_shouldThrowUserNotAuthorizedException() {
         String wrongOwner = "anotherUser";
         when(urlMappingRepositoryPort.findByShortKey(shortKey)).thenReturn(Optional.of(existingUrlMapping));
 
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        UserNotAuthorizedException exception = assertThrows(UserNotAuthorizedException.class, () -> {
             updateUrlUseCase.updateUrl(shortKey, newOriginalUrl, wrongOwner);
         });
 
-        assertEquals("Usuário não autorizado a editar esse link.", exception.getMessage());
+        assertEquals("User not authorized to edit this link.", exception.getMessage());
         verify(urlMappingRepositoryPort, never()).save(any(UrlMapping.class));
     }
 }

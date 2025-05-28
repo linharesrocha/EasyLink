@@ -1,5 +1,7 @@
 package br.com.easylink.easylinkservice.application;
 
+import br.com.easylink.easylinkservice.application.exceptions.UrlNotFoundException;
+import br.com.easylink.easylinkservice.application.exceptions.UserNotAuthorizedException;
 import br.com.easylink.easylinkservice.application.ports.DeleteUrlUseCase;
 import br.com.easylink.easylinkservice.application.ports.UrlMappingRepositoryPort;
 import br.com.easylink.easylinkservice.domain.UrlMapping;
@@ -19,9 +21,9 @@ public class DeleteUrlUseCaseImpl implements DeleteUrlUseCase {
     @Transactional
     public void deleteUrl(String shortKey, String ownerUsername) {
         UrlMapping urlMapping = urlMappingRepositoryPort.findByShortKey(shortKey)
-                .orElseThrow(() -> new RuntimeException("Link não encontrado com a chave: " + shortKey));
+                .orElseThrow(() -> new UrlNotFoundException("Link not found with key: " + shortKey));
         if (!urlMapping.getOwnerUsername().equals(ownerUsername)) {
-            throw new RuntimeException("Usuário não autorizado a deletar este link.");
+            throw new UserNotAuthorizedException("User not authorized to delete this link.");
         }
         urlMappingRepositoryPort.deleteByShortKey(shortKey);
     }

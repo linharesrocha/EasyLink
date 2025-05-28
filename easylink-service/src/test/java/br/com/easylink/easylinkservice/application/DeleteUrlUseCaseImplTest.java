@@ -1,5 +1,8 @@
+// Path: easylink-service/src/test/java/br/com/easylink/easylinkservice/application/DeleteUrlUseCaseImplTest.java
 package br.com.easylink.easylinkservice.application;
 
+import br.com.easylink.easylinkservice.application.exceptions.UrlNotFoundException;
+import br.com.easylink.easylinkservice.application.exceptions.UserNotAuthorizedException;
 import br.com.easylink.easylinkservice.application.ports.UrlMappingRepositoryPort;
 import br.com.easylink.easylinkservice.domain.UrlMapping;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,49 +46,42 @@ class DeleteUrlUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("Deve deletar o link com sucesso quando o usuário é o dono")
-    void deleteUrl_quandoLinkExisteEUsuarioEDono_deveChamarDeleteDoRepositorio() {
-        // GIVEN
+    @DisplayName("Should delete the link successfully when the user is the owner")
+    void deleteUrl_whenLinkExistsAndUserIsOwner_shouldCallDeleteFromRepository() {
         when(urlMappingRepositoryPort.findByShortKey(shortKey)).thenReturn(Optional.of(existingUrlMapping));
         doNothing().when(urlMappingRepositoryPort).deleteByShortKey(shortKey);
 
-        // WHEN
         assertDoesNotThrow(() -> deleteUrlUseCase.deleteUrl(shortKey, ownerUsername));
 
-        // THEN
         verify(urlMappingRepositoryPort, times(1)).findByShortKey(shortKey);
         verify(urlMappingRepositoryPort, times(1)).deleteByShortKey(shortKey);
     }
 
     @Test
-    @DisplayName("Deve lançar RuntimeException quando o link não é encontrado para deleção")
-    void deleteUrl_quandoLinkNaoExiste_deveLancarRuntimeException() {
-        // GIVEN
+    @DisplayName("Should throw UrlNotFoundException when the link to be deleted is not found")
+    void deleteUrl_whenLinkIsNotFound_shouldThrowUrlNotFoundException() {
         String nonExistingKey = "nonExistingKey";
         when(urlMappingRepositoryPort.findByShortKey(nonExistingKey)).thenReturn(Optional.empty());
 
-        // WHEN & THEN
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        UrlNotFoundException exception = assertThrows(UrlNotFoundException.class, () -> {
             deleteUrlUseCase.deleteUrl(nonExistingKey, ownerUsername);
         });
 
-        assertEquals("Link não encontrado com a chave: " + nonExistingKey, exception.getMessage());
+        assertEquals("Link not found with key: " + nonExistingKey, exception.getMessage());
         verify(urlMappingRepositoryPort, never()).deleteByShortKey(anyString());
     }
 
     @Test
-    @DisplayName("Deve lançar RuntimeException quando o usuário não é o dono do link para deleção")
-    void deleteUrl_quandoUsuarioNaoEDono_deveLancarRuntimeException() {
-        // GIVEN
+    @DisplayName("Should throw UserNotAuthorizedException when user is not the owner of the link")
+    void deleteUrl_whenUserIsNotTheOwner_shouldThrowUserNotAuthorizedException() {
         String anotherUser = "anotherUser";
         when(urlMappingRepositoryPort.findByShortKey(shortKey)).thenReturn(Optional.of(existingUrlMapping));
 
-        // WHEN & THEN
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        UserNotAuthorizedException exception = assertThrows(UserNotAuthorizedException.class, () -> {
             deleteUrlUseCase.deleteUrl(shortKey, anotherUser);
         });
 
-        assertEquals("Usuário não autorizado a deletar este link.", exception.getMessage());
+        assertEquals("User not authorized to delete this link.", exception.getMessage());
         verify(urlMappingRepositoryPort, never()).deleteByShortKey(anyString());
     }
 }
