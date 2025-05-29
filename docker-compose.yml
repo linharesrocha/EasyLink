@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 1. Serviços de Infraestrutura Base (Bancos de Dados e Cache)
   postgres-db:
@@ -13,6 +11,11 @@ services:
       - POSTGRES_DB=easylink_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U easylink_user -d easylink_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   user-postgres-db:
@@ -26,6 +29,11 @@ services:
       - POSTGRES_DB=user_db
     volumes:
       - user_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_db_user -d user_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   mongo-db:
@@ -38,6 +46,11 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=rootpassword
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   redis-cache:
@@ -47,6 +60,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   # 2. Mensageria (Kafka e Zookeeper)
@@ -56,6 +74,12 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: echo ruok | nc localhost 2181
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
 
   kafka:
     image: confluentinc/cp-kafka:7.5.3
@@ -63,7 +87,8 @@ services:
     ports:
       - "9092:9092"
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
@@ -72,6 +97,13 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:29092 --list 1>/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: always
 
   # 3. Service Discovery
   discovery-service:
@@ -83,7 +115,7 @@ services:
       - "8761:8761"
     restart: unless-stopped
 
-  # 4. API Gateway (depende apenas do Service Discovery para iniciar)
+  # 4. API Gateway
   api-gateway:
     build:
       context: ./api-gateway
@@ -92,7 +124,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - discovery-service
+      discovery-service:
+        condition: service_started
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       API_SECURITY_TOKEN_SECRET: ${API_JWT_SECRET_KEY:-meu-secret-super-secreto-para-gerar-tokens-do-easylink}
@@ -107,10 +140,14 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - discovery-service
-      - postgres-db
-      - kafka
-      - redis-cache
+      discovery-service:
+        condition: service_started
+      postgres-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/easylink_db
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
@@ -126,8 +163,10 @@ services:
     ports:
       - "8083:8083"
     depends_on:
-      - discovery-service
-      - user-postgres-db
+      discovery-service:
+        condition: service_started
+      user-postgres-db:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-postgres-db:5432/user_db
       SPRING_DATASOURCE_USERNAME: user_db_user
@@ -144,9 +183,12 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      - discovery-service
-      - kafka
-      - mongo-db
+      discovery-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      mongo-db:
+        condition: service_healthy
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092

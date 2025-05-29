@@ -1,6 +1,6 @@
-package br.com.easyclick.analyticsservice.persistence;
+package br.com.easylink.analyticsservice.persistence;
 
-import br.com.easyclick.analyticsservice.domain.ClickEvent;
+import br.com.easylink.analyticsservice.domain.ClickEvent;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface ClickEventRepository extends MongoRepository<ClickEvent, String> {

@@ -5,6 +5,7 @@ import br.com.easylink.easylinkservice.domain.UrlMapping;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlRequestDTO;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlResponseDTO;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.UpdateUrlRequestDTO;
+import br.com.easylink.easylinkservice.infrastructure.messaging.dto.UrlClickedEvent;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -12,9 +13,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Optional;
 
 @Slf4j
@@ -39,7 +43,7 @@ public class UrlShortenerController {
     private final DeleteUrlUseCase deleteUrlUseCase;
 
     private final String BASE_URL = "http://localhost:8080/";
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, UrlClickedEvent> kafkaTemplate;
 
     private static final String URL_CLICKS_TOPIC = "url-clicks-topic";
 
@@ -58,6 +62,7 @@ public class UrlShortenerController {
     public ResponseEntity<CreateUrlResponseDTO> shortenUrl(
             @RequestBody @Valid CreateUrlRequestDTO request,
             @RequestHeader("X-User-Username") String username) {
+        log.info("Attempting to shorten URL [{}] for user [{}].", request.originalUrl(), username);
         UrlMapping newMapping = urlShortenerUseCase.shortenUrl(request.originalUrl(), username);
 
         URI shortUri = ServletUriComponentsBuilder.fromCurrentContextPath()
@@ -73,7 +78,8 @@ public class UrlShortenerController {
                 gatewayShortURL,
                 newMapping.getCreatedAt()
         );
-
+        log.info("URL shortened successfully. Original: [{}], ShortKey: [{}], Full Short URL: [{}], User: [{}].",
+                newMapping.getOriginalUrl(), newMapping.getShortKey(), gatewayShortURL, username);
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
 
@@ -84,19 +90,29 @@ public class UrlShortenerController {
             @ApiResponse(responseCode = "404", description = "Link não encontrado para a chave fornecida")
     })
     @GetMapping("/{shortKey}")
-    public ResponseEntity<Void> redirectToOriginalUrl(@PathVariable String shortKey) {
+    public ResponseEntity<Void> redirectToOriginalUrl(@PathVariable String shortKey, HttpServletRequest request) {
+        log.info("Redirect request for shortKey: [{}] from IP: [{}].", shortKey, request.getRemoteAddr());
         Optional<String> originalUrlOpt = redirectUseCase.getOriginalUrl(shortKey);
 
         if (originalUrlOpt.isPresent()) {
-            log.info("Disparando evento de clique para o Kafka. Chave: {}", shortKey);
-            kafkaTemplate.send(URL_CLICKS_TOPIC, shortKey);
+            // Kafka
+            log.info("Dispatching click event to Kafka for shortKey: [{}], redirecting to: [{}].", shortKey, originalUrlOpt.get());
+            UrlClickedEvent event = new UrlClickedEvent(
+                    shortKey,
+                    Instant.now(),
+                    request.getHeader(HttpHeaders.USER_AGENT),
+                    request.getHeader(HttpHeaders.REFERER)
+            );
+            kafkaTemplate.send(URL_CLICKS_TOPIC, event);
 
-            // Ação 2: Montar a resposta de redirecionamento.
+
+            // Monta e retorna redirecionamento.
             return ResponseEntity
                     .status(HttpStatus.FOUND)
                     .location(URI.create(originalUrlOpt.get()))
                     .build();
         } else {
+            log.warn("ShortKey [{}] not found for redirection.", shortKey);
             return ResponseEntity.notFound().build();
         }
     }
@@ -111,16 +127,14 @@ public class UrlShortenerController {
     })
     @GetMapping(value = "/{shortKey}/qr", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getQrCode(@PathVariable String shortKey) {
+        log.info("QR Code generation request for shortKey: [{}].", shortKey);
         try {
             String fullShortUrl = BASE_URL + shortKey;
-
-            // Usamos o método da nossa porta
             byte[] qrCodeImage = qrCodeGeneratorPort.generate(fullShortUrl, 250, 250);
-
+            log.info("QR Code generated successfully for shortKey: [{}].", shortKey);
             return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(qrCodeImage);
-
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error generating QR Code for shortKey [{}]: {}", shortKey, e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -142,19 +156,32 @@ public class UrlShortenerController {
             @PathVariable String shortKey,
             @RequestBody @Valid UpdateUrlRequestDTO request,
             @RequestHeader("X-User-Username") String username
-            ) {
-
-        UrlMapping updatedMapping = updateUrlUseCase.updateUrl(shortKey, request.newOriginalUrl(), username);
-
-        // Reutilizando o DTO de criação para a resposta, mas poderíamos ter um UpdateUrlResponseDTO
-        String gatewayShortUrl = BASE_URL + updatedMapping.getShortKey();
-        CreateUrlResponseDTO responseDto = new CreateUrlResponseDTO(
-                updatedMapping.getShortKey(),
-                updatedMapping.getOriginalUrl(),
-                gatewayShortUrl,
-                updatedMapping.getCreatedAt()
-        );
-        return ResponseEntity.ok(responseDto);
+    ) {
+        log.info("Attempting to update URL for shortKey [{}] by user [{}]. New original URL: [{}].",
+                shortKey, username, request.newOriginalUrl()); // NOVO LOG
+        try {
+            UrlMapping updatedMapping = updateUrlUseCase.updateUrl(shortKey, request.newOriginalUrl(), username);
+            String gatewayShortUrl = BASE_URL + updatedMapping.getShortKey();
+            CreateUrlResponseDTO responseDto = new CreateUrlResponseDTO(
+                    updatedMapping.getShortKey(),
+                    updatedMapping.getOriginalUrl(),
+                    gatewayShortUrl,
+                    updatedMapping.getCreatedAt()
+            );
+            log.info("URL for shortKey [{}] updated successfully by user [{}]. New target: [{}].",
+                    shortKey, username, updatedMapping.getOriginalUrl());
+            return ResponseEntity.ok(responseDto);
+        } catch (br.com.easylink.easylinkservice.application.exceptions.UrlNotFoundException e) {
+            log.warn("Update failed for shortKey [{}], user [{}]: {}", shortKey, username, e.getMessage());
+            return ResponseEntity.notFound().build(); // Ou um ProblemDetail
+        } catch (br.com.easylink.easylinkservice.application.exceptions.UserNotAuthorizedException e) {
+            log.warn("Update failed for shortKey [{}], user [{}]: {}", shortKey, username, e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); // Ou um ProblemDetail
+        } catch (Exception e) {
+            log.error("Unexpected error updating URL for shortKey [{}] by user [{}]: {}",
+                    shortKey, username, e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @Operation(summary = "Deleta um link encurtado",
@@ -171,16 +198,20 @@ public class UrlShortenerController {
     public ResponseEntity<Void> deleteShortenedUrl(
             @PathVariable String shortKey,
             @RequestHeader("X-User-Username") String username) {
+        log.info("Attempting to delete URL for shortKey [{}] by user [{}].", shortKey, username);
         try {
             deleteUrlUseCase.deleteUrl(shortKey, username);
+            log.info("URL for shortKey [{}] deleted successfully by user [{}].", shortKey, username);
             return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            if (e.getMessage().startsWith("Link não encontrado")) {
-                return ResponseEntity.notFound().build();
-            } else if (e.getMessage().startsWith("Usuário não autorizado")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
-            log.error("Erro inesperado ao deletar link: {}", shortKey, e);
+        } catch (br.com.easylink.easylinkservice.application.exceptions.UrlNotFoundException e) {
+            log.warn("Deletion failed for shortKey [{}], user [{}]: {}", shortKey, username, e.getMessage());
+            return ResponseEntity.notFound().build();
+        } catch (br.com.easylink.easylinkservice.application.exceptions.UserNotAuthorizedException e) {
+            log.warn("Deletion failed for shortKey [{}], user [{}]: {}", shortKey, username, e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            log.error("Unexpected error deleting URL for shortKey [{}] by user [{}]: {}",
+                    shortKey, username, e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

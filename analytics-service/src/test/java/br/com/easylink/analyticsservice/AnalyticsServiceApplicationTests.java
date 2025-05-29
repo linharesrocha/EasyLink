@@ -1,4 +1,4 @@
-package br.com.easyclick.analyticsservice;
+package br.com.easylink.analyticsservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
