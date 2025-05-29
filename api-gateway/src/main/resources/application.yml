@@ -80,4 +80,4 @@ resilience4j.circuitbreaker:
 api:
   security:
     token:
-      secret: meu-secret-super-secreto-para-gerar-tokens-do-easylink
+      secret: ${API_SECURITY_TOKEN_SECRET:meu-secret-super-secreto-para-gerar-tokens-do-easylink-para-dev}
