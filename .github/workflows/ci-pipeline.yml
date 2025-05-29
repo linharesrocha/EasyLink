@@ -24,5 +24,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
+      - name: Make Maven Wrapper executable
+        run: chmod +x ${{ matrix.service }}/mvnw
+
       - name: Build and Test with Maven
         run: cd ${{ matrix.service }} && ./mvnw clean verify
