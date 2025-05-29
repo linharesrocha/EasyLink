@@ -45,7 +45,7 @@ spring:
         - id: easylink-service-redirect-route
           uri: lb://easylink-service
           predicates:
-            - Path=/{shortKey:[a-zA-Z0-9]{8}}
+            - Path=/{shortKey}
           filters:
             - name: CircuitBreaker
               args:

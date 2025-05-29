@@ -1,6 +1,7 @@
 // Path: easylink-service/src/main/java/br/com/easylink/easylinkservice/infrastructure/api/exception/GlobalExceptionHandler.java
 package br.com.easylink.easylinkservice.infrastructure.api.exception;
 
+import br.com.easylink.easylinkservice.application.exceptions.CustomKeyAlreadyExistsException;
 import br.com.easylink.easylinkservice.application.exceptions.UrlNotFoundException;
 import br.com.easylink.easylinkservice.application.exceptions.UserNotAuthorizedException;
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotAuthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUserNotAuthorized(UserNotAuthorizedException ex) {
         var status = HttpStatus.FORBIDDEN;
+        var errorResponse = new ErrorResponse(
+                status.value(),
+                status.getReasonPhrase(),
+                ex.getMessage(),
+                Instant.now()
+        );
+        return new ResponseEntity<>(errorResponse, status);
+    }
+
+    @ExceptionHandler(CustomKeyAlreadyExistsException.class) // Novo handler
+    public ResponseEntity<ErrorResponse> handleCustomKeyAlreadyExists(CustomKeyAlreadyExistsException ex) {
+        var status = HttpStatus.CONFLICT; // 409 Conflict é apropriado
         var errorResponse = new ErrorResponse(
                 status.value(),
                 status.getReasonPhrase(),

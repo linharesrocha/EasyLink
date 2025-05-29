@@ -63,7 +63,7 @@ public class UrlShortenerController {
             @RequestBody @Valid CreateUrlRequestDTO request,
             @RequestHeader("X-User-Username") String username) {
         log.info("Attempting to shorten URL [{}] for user [{}].", request.originalUrl(), username);
-        UrlMapping newMapping = urlShortenerUseCase.shortenUrl(request.originalUrl(), username);
+        UrlMapping newMapping = urlShortenerUseCase.shortenUrl(request.originalUrl(), username, request.customKey());
 
         URI shortUri = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/{shortKey}")

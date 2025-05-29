@@ -30,12 +30,14 @@ class UrlShortenerUseCaseImplTest {
 
     private String originalUrl;
     private String ownerUsername;
+    private String customKey;
     private UrlMapping urlMappingMock;
 
     @BeforeEach
     void setUp() {
         originalUrl = "https://www.example.com/muito/longa/url";
         ownerUsername = "testuser";
+        customKey = "meu-site";
 
         urlMappingMock = new UrlMapping();
         urlMappingMock.setId(1L);
@@ -50,7 +52,7 @@ class UrlShortenerUseCaseImplTest {
     void shortenUrl_comDadosValidos_deveSalvarComDadosCorretos() {
         when(urlMappingRepositoryPort.save(any(UrlMapping.class))).thenReturn(urlMappingMock);
 
-        UrlMapping result = urlShortenerUseCase.shortenUrl(originalUrl, ownerUsername);
+        UrlMapping result = urlShortenerUseCase.shortenUrl(originalUrl, ownerUsername, customKey);
 
         ArgumentCaptor<UrlMapping> urlMappingCaptor = ArgumentCaptor.forClass(UrlMapping.class);
         verify(urlMappingRepositoryPort, times(1)).save(urlMappingCaptor.capture());
