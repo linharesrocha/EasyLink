@@ -1,4 +1,4 @@
-package br.com.easyclick.analyticsservice.dto;
+package br.com.easylink.analyticsservice.dto;
 
 import java.time.Instant;
 

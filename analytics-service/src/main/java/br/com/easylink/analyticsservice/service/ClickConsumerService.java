@@ -1,8 +1,8 @@
-package br.com.easyclick.analyticsservice.service;
+package br.com.easylink.analyticsservice.service;
 
-import br.com.easyclick.analyticsservice.domain.ClickEvent;
-import br.com.easyclick.analyticsservice.dto.UrlClickedEvent;
-import br.com.easyclick.analyticsservice.persistence.ClickEventRepository;
+import br.com.easylink.analyticsservice.domain.ClickEvent;
+import br.com.easylink.analyticsservice.dto.UrlClickedEvent;
+import br.com.easylink.analyticsservice.persistence.ClickEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

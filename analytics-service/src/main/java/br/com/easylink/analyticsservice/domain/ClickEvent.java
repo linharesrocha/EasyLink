@@ -1,4 +1,4 @@
-package br.com.easyclick.analyticsservice.domain;
+package br.com.easylink.analyticsservice.domain;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,6 +18,6 @@ public class ClickEvent {
 
     public ClickEvent(String shortKey, LocalDateTime clickTimestamp) {
         this.shortKey = shortKey;
-        this.clickTimestamp = LocalDateTime.now();
+        this.clickTimestamp = clickTimestamp;
     }
 }
