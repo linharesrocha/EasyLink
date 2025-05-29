@@ -103,6 +103,7 @@ public class UrlShortenerController {
                     request.getHeader(HttpHeaders.USER_AGENT),
                     request.getHeader(HttpHeaders.REFERER)
             );
+            kafkaTemplate.send(URL_CLICKS_TOPIC, event);
 
 
             // Monta e retorna redirecionamento.
