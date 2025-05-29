@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: api-gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 5000ms
   cloud:
     gateway:
       default-filters:
@@ -30,6 +35,11 @@ spring:
               args:
                 name: easylink-service
                 fallbackUri: forward:/fallback/service
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate.limiter.burstCapacity: 40
 
         # Rota de redirecionamento
         - id: easylink-service-redirect-route
