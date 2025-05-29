@@ -5,6 +5,7 @@ import br.com.easylink.easylinkservice.domain.UrlMapping;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlRequestDTO;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.CreateUrlResponseDTO;
 import br.com.easylink.easylinkservice.infrastructure.api.dto.UpdateUrlRequestDTO;
+import br.com.easylink.easylinkservice.infrastructure.messaging.dto.UrlClickedEvent;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -12,9 +13,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Optional;
 
 @Slf4j
@@ -39,7 +43,7 @@ public class UrlShortenerController {
     private final DeleteUrlUseCase deleteUrlUseCase;
 
     private final String BASE_URL = "http://localhost:8080/";
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, UrlClickedEvent> kafkaTemplate;
 
     private static final String URL_CLICKS_TOPIC = "url-clicks-topic";
 
@@ -84,14 +88,22 @@ public class UrlShortenerController {
             @ApiResponse(responseCode = "404", description = "Link não encontrado para a chave fornecida")
     })
     @GetMapping("/{shortKey}")
-    public ResponseEntity<Void> redirectToOriginalUrl(@PathVariable String shortKey) {
+    public ResponseEntity<Void> redirectToOriginalUrl(@PathVariable String shortKey, HttpServletRequest request) {
         Optional<String> originalUrlOpt = redirectUseCase.getOriginalUrl(shortKey);
 
         if (originalUrlOpt.isPresent()) {
-            log.info("Disparando evento de clique para o Kafka. Chave: {}", shortKey);
-            kafkaTemplate.send(URL_CLICKS_TOPIC, shortKey);
+            // Kafka
+            log.info("Dispatching click event to Kafka for key: {}", shortKey);
 
-            // Ação 2: Montar a resposta de redirecionamento.
+            UrlClickedEvent event = new UrlClickedEvent(
+                    shortKey,
+                    Instant.now(),
+                    request.getHeader(HttpHeaders.USER_AGENT),
+                    request.getHeader(HttpHeaders.REFERER)
+            );
+
+
+            // Monta e retorna redirecionamento.
             return ResponseEntity
                     .status(HttpStatus.FOUND)
                     .location(URI.create(originalUrlOpt.get()))
