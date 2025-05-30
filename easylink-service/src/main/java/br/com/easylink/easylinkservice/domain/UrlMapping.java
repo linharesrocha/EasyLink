@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Data
@@ -25,8 +26,11 @@ public class UrlMapping {
     private String originalUrl;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(nullable = false, updatable = false)
     private String ownerUsername;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
 }

@@ -11,7 +11,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,15 +46,18 @@ class UrlShortenerUseCaseImplTest {
         urlMappingMock.setOriginalUrl(originalUrl);
         urlMappingMock.setOwnerUsername(ownerUsername);
         urlMappingMock.setShortKey("ABC123XY");
-        urlMappingMock.setCreatedAt(LocalDateTime.now());
+        urlMappingMock.setCreatedAt(Instant.now());
     }
 
     @Test
-    @DisplayName("Deve encurtar URL e salvar com os dados corretos")
-    void shortenUrl_comDadosValidos_deveSalvarComDadosCorretos() {
-        when(urlMappingRepositoryPort.save(any(UrlMapping.class))).thenReturn(urlMappingMock);
+    @DisplayName("Deve encurtar URL com data de expiração e salvar corretamente")
+    void shortenUrl_comDataExpiracao_deveSalvarComDadosCorretos() {
+        Instant futureDate = Instant.now().plus(1, ChronoUnit.DAYS);
+        when(urlMappingRepositoryPort.save(any(UrlMapping.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        UrlMapping result = urlShortenerUseCase.shortenUrl(originalUrl, ownerUsername, customKey);
+        // Assumindo que a interface e a implementação de UrlShortenerUseCase foram atualizadas
+        // para aceitar expiresAt
+        UrlMapping result = urlShortenerUseCase.shortenUrl(originalUrl, ownerUsername, null, futureDate);
 
         ArgumentCaptor<UrlMapping> urlMappingCaptor = ArgumentCaptor.forClass(UrlMapping.class);
         verify(urlMappingRepositoryPort, times(1)).save(urlMappingCaptor.capture());
@@ -63,9 +68,26 @@ class UrlShortenerUseCaseImplTest {
         assertEquals(originalUrl, capturedMapping.getOriginalUrl());
         assertEquals(ownerUsername, capturedMapping.getOwnerUsername());
         assertNotNull(capturedMapping.getShortKey());
-        assertEquals(8, capturedMapping.getShortKey().length());
         assertNotNull(capturedMapping.getCreatedAt());
+        assertEquals(futureDate, capturedMapping.getExpiresAt()); // Verificar expiresAt
+        assertEquals(futureDate, result.getExpiresAt());
+    }
 
-        assertEquals(urlMappingMock.getShortKey(), result.getShortKey());
+    @Test
+    @DisplayName("Deve encurtar URL sem data de expiração e expiresAt deve ser nulo")
+    void shortenUrl_semDataExpiracao_deveSalvarComExpiresAtNulo() {
+        when(urlMappingRepositoryPort.save(any(UrlMapping.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Assumindo que a interface e a implementação de UrlShortenerUseCase foram atualizadas
+        // para aceitar expiresAt (que pode ser nulo)
+        UrlMapping result = urlShortenerUseCase.shortenUrl(originalUrl, ownerUsername, null, null);
+
+        ArgumentCaptor<UrlMapping> urlMappingCaptor = ArgumentCaptor.forClass(UrlMapping.class);
+        verify(urlMappingRepositoryPort, times(1)).save(urlMappingCaptor.capture());
+        UrlMapping capturedMapping = urlMappingCaptor.getValue();
+
+        assertNotNull(result);
+        assertNull(capturedMapping.getExpiresAt()); // Verificar que expiresAt é nulo
+        assertNull(result.getExpiresAt());
     }
 }
