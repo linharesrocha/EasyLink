@@ -18,9 +18,6 @@ Bem-vindo ao EasyLink! Este projeto é um encurtador de URLs robusto e escaláve
 
 ## Funcionalidades Principais
 
-<img src="https://raw.githubusercontent.com/linharesrocha/EasyLink/refs/heads/main/easylink-service/src/main/resources/static/swagger.png" alt="Endpoints" width="100%" height="100%"/>
-
-
 * **Encurtamento de URL:**
     * Cria links curtos e únicos.
     * Suporte a **URLs Personalizadas**, permitindo que os usuários escolham seus próprios apelidos para os links.
