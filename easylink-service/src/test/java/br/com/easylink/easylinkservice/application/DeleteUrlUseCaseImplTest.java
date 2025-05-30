@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -42,7 +43,7 @@ class DeleteUrlUseCaseImplTest {
         existingUrlMapping.setShortKey(shortKey);
         existingUrlMapping.setOriginalUrl("https://www.example.com");
         existingUrlMapping.setOwnerUsername(ownerUsername);
-        existingUrlMapping.setCreatedAt(LocalDateTime.now());
+        existingUrlMapping.setCreatedAt(Instant.now());
     }
 
     @Test

@@ -29,6 +29,7 @@ public class SecurityConfig {
                 // 3. Definindo as regras de autorização para os endpoints.
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 );
 

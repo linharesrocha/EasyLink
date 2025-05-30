@@ -10,7 +10,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,7 +42,7 @@ class RedirectUseCaseImplTest {
         urlMapping.setId(1L);
         urlMapping.setShortKey(existingShortKey);
         urlMapping.setOriginalUrl(originalUrl);
-        urlMapping.setCreatedAt(LocalDateTime.now());
+        urlMapping.setCreatedAt(Instant.now());
         urlMapping.setOwnerUsername("testowner");
     }
 
@@ -65,5 +67,44 @@ class RedirectUseCaseImplTest {
 
         assertFalse(result.isPresent());
         verify(urlMappingRepositoryPort, times(1)).findByShortKey(nonExistingShortKey);
+    }
+
+
+
+    @Test
+    @DisplayName("Deve retornar URL original para link válido e não expirado")
+    void getOriginalUrl_quandoLinkValidoENaoExpirado_deveRetornarUrl() {
+        Instant futureDate = Instant.now().plus(1, ChronoUnit.DAYS);
+        urlMapping.setExpiresAt(futureDate); // urlMapping é o mock configurado no @BeforeEach
+        when(urlMappingRepositoryPort.findByShortKey(existingShortKey)).thenReturn(Optional.of(urlMapping));
+
+        Optional<String> result = redirectUseCase.getOriginalUrl(existingShortKey);
+
+        assertTrue(result.isPresent());
+        assertEquals(originalUrl, result.get());
+    }
+
+    @Test
+    @DisplayName("Deve retornar Optional vazio para link expirado")
+    void getOriginalUrl_quandoLinkExpirado_deveRetornarOptionalVazio() {
+        Instant pastDate = Instant.now().minus(1, ChronoUnit.DAYS);
+        urlMapping.setExpiresAt(pastDate); // urlMapping é o mock configurado no @BeforeEach
+        when(urlMappingRepositoryPort.findByShortKey(existingShortKey)).thenReturn(Optional.of(urlMapping));
+
+        Optional<String> result = redirectUseCase.getOriginalUrl(existingShortKey);
+
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    @DisplayName("Deve retornar URL original para link válido sem data de expiração")
+    void getOriginalUrl_quandoLinkValidoSemDataExpiracao_deveRetornarUrl() {
+        urlMapping.setExpiresAt(null); // urlMapping é o mock configurado no @BeforeEach
+        when(urlMappingRepositoryPort.findByShortKey(existingShortKey)).thenReturn(Optional.of(urlMapping));
+
+        Optional<String> result = redirectUseCase.getOriginalUrl(existingShortKey);
+
+        assertTrue(result.isPresent());
+        assertEquals(originalUrl, result.get());
     }
 }

@@ -17,6 +17,9 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - easylink-network
+
 
   user-postgres-db:
     image: postgres:15-alpine
@@ -35,6 +38,9 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - easylink-network
+
 
   mongo-db:
     image: mongo:7.0
@@ -52,6 +58,9 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - easylink-network
+
 
   redis-cache:
     image: redis:7-alpine
@@ -66,6 +75,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - easylink-network
 
   # 2. Mensageria (Kafka e Zookeeper)
   zookeeper:
@@ -80,6 +91,8 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+    networks:
+      - easylink-network
 
   kafka:
     image: confluentinc/cp-kafka:7.5.3
@@ -104,6 +117,8 @@ services:
       timeout: 10s
       retries: 10
     restart: always
+    networks:
+      - easylink-network
 
   # 3. Service Discovery
   discovery-service:
@@ -114,6 +129,8 @@ services:
     ports:
       - "8761:8761"
     restart: unless-stopped
+    networks:
+      - easylink-network
 
   # 4. API Gateway
   api-gateway:
@@ -130,6 +147,8 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       API_SECURITY_TOKEN_SECRET: ${API_JWT_SECRET_KEY:-meu-secret-super-secreto-para-gerar-tokens-do-easylink}
     restart: unless-stopped
+    networks:
+      - easylink-network
 
   # 5. Microsserviços da Aplicação
   easylink-service:
@@ -154,6 +173,8 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATA_REDIS_HOST: redis-cache
     restart: unless-stopped
+    networks:
+      - easylink-network
 
   user-service:
     build:
@@ -174,6 +195,8 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       API_SECURITY_TOKEN_SECRET: ${API_JWT_SECRET_KEY:-meu-secret-super-secreto-para-gerar-tokens-do-easylink}
     restart: unless-stopped
+    networks:
+      - easylink-network
 
   analytics-service:
     build:
@@ -194,6 +217,40 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATA_MONGODB_URI: mongodb://root:rootpassword@mongo-db:27017/analytics_db?authSource=admin
     restart: unless-stopped
+    networks:
+      - easylink-network
+
+  # Observabilidade
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus/
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - easylink-network
+
+  grafana:
+    image: grafana/grafana-oss:11.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - easylink-network
 
 volumes:
   postgres_data:
@@ -204,3 +261,7 @@ volumes:
     driver: local
   redis_data:
     driver: local
+
+networks:
+  easylink-network:
+    driver: bridge
